@@ -1,50 +1,86 @@
-name: Build APK
+name: Build and Release APK
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - 'v*.*.*'  # 仅在版本标签推送时触发
+      - 'v*' # 当推送符合 v* 格式的标签时触发，例如 v1.0.0
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
+    # 检出代码
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up JDK
-        uses: actions/setup-java@v1
-        with:
-          java-version: '11'  # 使用 Java 11
+    # 设置 Java 环境
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '11'
 
-      - name: Install Gradle
-        run: |
-          wget https://services.gradle.org/distributions/gradle-7.2-all.zip -P $HOME/
-          unzip $HOME/gradle-7.2-all.zip -d $HOME/
-          export GRADLE_HOME=$HOME/gradle-7.2
-          export PATH=$PATH:$GRADLE_HOME/bin
-          chmod +x gradlew
+    # 缓存 Gradle 构建目录
+    - name: Cache Gradle
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
 
-      - name: Build APK
-        run: ./gradlew assembleDebug  # 构建调试版本的 APK
+    # 确保 Gradle Wrapper 可执行
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+    # 构建 APK
+    - name: Build APK
+      run: ./gradlew assembleRelease
 
-      - name: Upload APK to Release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app/build/outputs/apk/debug/app-debug.apk  # APK 文件路径
-          asset_name: app-debug.apk
-          asset_content_type: application/vnd.android.package-archive
+    # 保存构建结果作为 artifact
+    - name: Upload APK as Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-apk
+        path: app/build/outputs/apk/release/app-release.apk
+
+  release:
+    name: Create GitHub Release and Upload APK
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    # 检出代码（必要时）
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 下载构建的 APK
+    - name: Download APK Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: release-apk
+        path: ./release
+
+    # 创建 Release
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+    # 上传 APK 到 Release
+    - name: Upload APK to Release
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: ${{ steps.create-release.outputs.upload_url }}
+        asset_path: ./release/app-release.apk
+        asset_name: app-release.apk
+        content_type: application/vnd.android.package-archive
 
