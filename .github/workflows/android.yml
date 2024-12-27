@@ -3,6 +3,8 @@ name: Build and Release APK
 on:
   push:
     workflow_dispatch:
+
+
 jobs:
   build:
     name: Build APK
@@ -85,3 +87,4 @@ jobs:
         asset_path: ./release/app-release.apk
         asset_name: app-release.apk
         content_type: application/vnd.android.package-archive
+
