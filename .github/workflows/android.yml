@@ -3,7 +3,6 @@ name: Build and Release APK
 on:
   push:
     workflow_dispatch:
-
 jobs:
   build:
     name: Build APK
@@ -40,7 +39,11 @@ jobs:
     - name: Build APK
       run: ./gradlew assembleRelease
 
-    # 保存构建结果作为 artifact
+    # 调试输出构建结果
+    - name: Debug APK build output
+      run: ls -R app/build/outputs/apk
+
+    # 上传构建结果作为 artifact
     - name: Upload APK as Artifact
       uses: actions/upload-artifact@v3
       with:
@@ -82,4 +85,3 @@ jobs:
         asset_path: ./release/app-release.apk
         asset_name: app-release.apk
         content_type: application/vnd.android.package-archive
-
