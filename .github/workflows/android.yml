@@ -26,6 +26,7 @@ jobs:
           unzip $HOME/gradle-7.2-all.zip -d $HOME/
           export GRADLE_HOME=$HOME/gradle-7.2
           export PATH=$PATH:$GRADLE_HOME/bin
+          chmod +x gradlew
 
       - name: Build APK
         run: ./gradlew assembleDebug  # 构建调试版本的 APK
